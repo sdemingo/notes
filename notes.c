@@ -10,6 +10,11 @@
 #include <fcntl.h>
 #include <unistd.h>
 
+
+const char *dirnotes = ".cairen/notes";
+const char *editor = "emacs";
+
+
 /*
   Cosas que faltan:
   - Agregar filtrado por etiquetas. 
@@ -19,13 +24,11 @@
 const int NOTES_NAMES_WIDTH = 30;
 const char *TITLE = "Notes 0.5";
 const char *INFOBAR = " [q]=>Salir  [Enter]=>Mostrar  [e]=>Editar  [:]=>Filtrar  [d]=>Borrar";
-const char *dirname = "~/.cairen/notes";
-const char *editor = "emacs";
 const int choices_showed = 15;
-
 const int MODE_NAV = 0;
 const int MODE_TAG = 1;
 
+char *dirname;
 int startx = 0;
 int starty = 0;
 
@@ -57,6 +60,12 @@ int main()
   mode = MODE_NAV;
   bool exit = false;
   int c;
+
+  char *homedir=getenv("HOME");
+  dirname=malloc((strlen(homedir)+strlen(dirnotes)+2)*sizeof(char));
+  strcat(dirname,homedir);
+  strcat(dirname,"/");
+  strcat(dirname,dirnotes);
 
   signal(SIGWINCH, sig_winch);
   n_choices = get_notes_filenames(&choices);
@@ -159,8 +168,6 @@ int main()
 
       print_menu(menu_win, highlight);
       print_tag_buffer();
-
-
     }
 
   wclear(menu_win);
@@ -170,6 +177,7 @@ int main()
   refresh();
   endwin();
 
+  free(dirname);
   if (files_deleted)
     printf("AVISO:\nAlgunas notas fueron marcadas para eliminar y movidas al directorio temporal\n\n");
 
@@ -290,8 +298,8 @@ int get_notes_filenames(char ***list)
   dirp = opendir(dirname);
   if (dirp == NULL)
     {
-      printf("Error: No se puede abrir el directorio de notas\n");
-      return -1;
+      printf("Error: No se puede abrir el directorio de notas: %s\n",dirname);
+      exit(0);
     }
   while ((direntp = readdir(dirp)) != NULL)
     {
