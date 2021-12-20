@@ -14,3 +14,6 @@ Para navegar puedes usar las teclas:
 ## Instalación
 
 Para personalizar la aplicación no uso ficheros de configuración, asi que tendrás que modificar las variables como `editor` o `dirnotes` para indicar el directorio con el que quieras trabajar. Para compilar (en Debian) necesitas tener instalados los paquetes `libncurses5-dev`y `libncursesw5-dev` y luego ejecutar el comando `make`.
+
+
+![](captura.png)
