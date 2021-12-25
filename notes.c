@@ -27,8 +27,6 @@ const int MODE_NAV = 0;
 const int MODE_TAG = 1;
 
 char *dirname;
-int startx = 0;
-int starty = 0;
 
 WINDOW *menu_win;
 int mode;
@@ -73,10 +71,8 @@ int main()
   clear();
   noecho();
   cbreak(); /* Line buffering disabled. pass on everything */
-  startx = 0;
-  starty = 3;
 
-  menu_win = newwin(LINES - 4, COLS, starty, startx);
+  menu_win = newwin(LINES - 4, COLS, 3, 0);
 
   keypad(menu_win, TRUE);
 
@@ -125,7 +121,7 @@ int main()
       break;
 
     case 10: // Enter
-      if (mode == MODE_NAV)
+      if ((mode == MODE_NAV) && (n_choices>0))
         print_file(menu_win, highlight);
 
       if (mode == MODE_TAG)
@@ -141,8 +137,6 @@ int main()
           highlight = 0;
         }
         mode = MODE_NAV;
-        // n_tag_chars = 0;
-        // tag_buffer[0] = '\0';
       }
       break;
 
@@ -353,14 +347,13 @@ int filter_by_tag(char ***list, char *tag)
   char line[300];
   char **filtered = NULL;
   int n_filtered = 0;
+  int len;
 
   for (i = 0; i < n_choices; i++)
   {
-
-    notepath = malloc((strlen(dirname) + strlen(choices[i]) + 2) * sizeof(char));
-    strcat(notepath, dirname);
-    strcat(notepath, "/");
-    strcat(notepath, choices[i]);
+    len = strlen(dirname) + strlen(choices[i]) + 2;
+    notepath = malloc(len * sizeof(char));
+    snprintf(notepath,len,"%s/%s",dirname,choices[i]);
 
     fp = fopen(notepath, "r");
     if (fp != NULL)
