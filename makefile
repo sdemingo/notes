@@ -1,4 +1,5 @@
 all:
-	gcc  -Wall notes.c -o notes -lform -lncurses
+	gcc  notes.c -o notes -lform -lncurses -Wall 
 clean:
 	rm notes
+

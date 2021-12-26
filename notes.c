@@ -1,47 +1,5 @@
-#include <stdio.h>
-#include <dirent.h>
-#include <ncurses.h>
-#include <sys/ioctl.h>
-#include <signal.h>
-#include <string.h>
-#include <stdlib.h>
-#include <sys/types.h>
-#include <sys/stat.h>
-#include <fcntl.h>
-#include <unistd.h>
+#include "utils.h"
 
-const char *dirnotes = ".cairen/notes";
-const char *editor = "emacs";
-
-const int NOTES_NAMES_WIDTH = 30;
-const char *TITLE = "Notes 1.0";
-const char *INFOBAR = " [q]=>Salir  [Enter]=>Mostrar  [e]=>Editar  [:]=>Filtrar  [d]=>Borrar";
-const int choices_showed = 15;
-const int MODE_NAV = 0;
-const int MODE_TAG = 1;
-
-char *dirname;
-
-WINDOW *menu_win;
-int mode;
-int highlight;
-
-char **choices;
-int n_choices;
-char tag_buffer[100];
-int n_tag_chars = 0;
-bool files_deleted = false;
-
-void print_menu(WINDOW *menu_win, int highlight);
-void print_file(WINDOW *win, int highlight);
-void print_info_bar();
-void print_tag_buffer();
-void edit_file(WINDOW *win, int number);
-void delete_file(int number);
-int get_notes_filenames(char ***list);
-int filter_by_tag(char ***list, char *tag);
-
-void sig_winch(int in);
 
 int main()
 {
@@ -50,6 +8,8 @@ int main()
   bool exit = false;
   int c;
 
+  n_tag_chars = 0;
+  files_deleted = false;
   char *homedir = getenv("HOME");
   dirname = malloc((strlen(homedir) + strlen(dirnotes) + 2) * sizeof(char));
   strcat(dirname, homedir);
@@ -59,7 +19,7 @@ int main()
   signal(SIGWINCH, sig_winch);
 
   choices = NULL;
-  n_choices = get_notes_filenames(&choices);
+  n_choices = get_files(&choices);
 
   initscr();
   clear();
@@ -83,7 +43,7 @@ int main()
 
   print_info_bar();
   print_tag_buffer();
-  print_menu(menu_win, highlight);
+  print_list(menu_win, highlight);
 
   while (!exit)
   {
@@ -127,7 +87,7 @@ int main()
         else
         {
           choices = NULL;
-          n_choices = get_notes_filenames(&choices);
+          n_choices = get_files(&choices);
           highlight = 0;
         }
         mode = MODE_NAV;
@@ -162,7 +122,7 @@ int main()
       break;
     }
 
-    print_menu(menu_win, highlight);
+    print_list(menu_win, highlight);
     print_tag_buffer();
   }
 
@@ -180,100 +140,13 @@ int main()
   return 0;
 }
 
-// Muestra la lista de archivos o notas en la parte izquierda de la pantalla
-// y permirte navegar entre ellas. El limite de las notas mostradas lo pone
-// la variable choices_showed
-void print_menu(WINDOW *menu_win, int highlight)
-{
-  int x, y, i;
-  int from, to;
-  x = 1;
-  y = 1;
 
-  box(menu_win, 0, 0);
-  from = highlight;
-  to = highlight + choices_showed;
 
-  for (i = from; i < to; ++i)
-  {
-    if ((i >= 0) && (i < n_choices))
-    {
-      if (i == from)
-      {
-        if (mode == MODE_NAV)
-        {
-          wattron(menu_win, A_REVERSE);
-          mvwprintw(menu_win, y, x, "%s", choices[i]);
-          wattroff(menu_win, A_REVERSE);
-        }
-        else
-        {
-          mvwprintw(menu_win, y, x, "%s", choices[i]);
-        }
-      }
-      else
-      {
-        mvwprintw(menu_win, y, x, "%s", choices[i]);
-      }
-    }
-    else
-    {
-      mvwprintw(menu_win, y, x, "             ");
-    }
 
-    ++y;
-  }
 
-  wmove(menu_win, 1, NOTES_NAMES_WIDTH - 1);
-  wvline(menu_win, 0, LINES - 6);
-  wrefresh(menu_win);
-}
-
-// Muestra el fichero en la parte derecha de la pantalla
-void print_file(WINDOW *win, int number)
-{
-  FILE *fp;
-  char line[300];
-  int line_max_len = COLS / 2;
-  int line_off = 2;
-  char *filename = NULL;
-
-  int len = strlen(dirname) + strlen(choices[number]) + 2;
-  filename = malloc(len * sizeof(char));
-  snprintf(filename, len, "%s/%s", dirname, choices[number]);
-
-  fp = fopen(filename, "r");
-  if (fp != NULL)
-  {
-    while (fgets(line, 300, fp) != NULL)
-    {
-      line[line_max_len] = 0; // solo muestra la parte de la línea que entra en la ventana
-      mvwprintw(menu_win, line_off, NOTES_NAMES_WIDTH, "%s", line);
-      line_off++;
-    }
-  }
-
-  free(filename);
-  wrefresh(menu_win);
-}
-
-// Comando de edición. Lllamada al sistema para arrancar el editor indicado
-void edit_file(WINDOW *win, int number)
-{
-  int len = strlen(editor) + strlen(dirname) + strlen(choices[number]) + 3;
-  char *command = malloc(len * sizeof(char));
-  snprintf(command, len, "%s %s/%s", editor, dirname, choices[number]);
-
-  endwin();
-  refresh();
-  wclear(win);
-
-  system(command);
-  free(command);
-}
 
 // Cara el directorio en la lista de navegación
-int get_notes_filenames(char ***list)
+int get_files(char ***list)
 {
   DIR *dirp;
   struct dirent *direntp;
@@ -296,40 +169,6 @@ int get_notes_filenames(char ***list)
 
   closedir(dirp);
   return n;
-}
-
-// Muestra el buffer de filtrado de etiquetas
-void print_tag_buffer()
-{
-  char *title = "Etiqueta:";
-  move(2, 0);
-  clrtoeol();
-  if (mode == MODE_TAG)
-  {
-    attron(A_REVERSE);
-    mvprintw(2, 0, title);
-    attroff(A_REVERSE);
-  }
-  else
-  {
-    mvprintw(2, 0, title);
-  }
-  mvprintw(2, strlen(title) + 1, tag_buffer);
-  refresh();
-}
-
-// Muestra la barra inferior
-void print_info_bar()
-{
-  int u = 0;
-  attron(A_REVERSE | A_BOLD);
-  for (u = 0; u < COLS; u++)
-  {
-    mvprintw(LINES - 1, u, " ");
-  }
-  mvprintw(LINES - 1, 1, "%s", INFOBAR);
-  attroff(A_REVERSE | A_BOLD);
-  refresh();
 }
 
 // Filtrado de notas por etiqueta. Retorna los elementos filtrados
@@ -399,7 +238,7 @@ void delete_file(int number)
   files_deleted = true;
 
   choices = NULL;
-  n_choices = get_notes_filenames(&choices);
+  n_choices = get_files(&choices);
 }
 
 // Manejador de eventos para la interrupción de redimensionado de la terminal
@@ -411,5 +250,137 @@ void sig_winch(int in)
   resizeterm(LINES, COLS);
 
   wresize(menu_win, LINES - 4, COLS);
-  print_menu(menu_win, highlight);
+  print_list(menu_win, highlight);
+}
+
+
+
+
+
+
+// Muestra la lista de archivos o notas en la parte izquierda de la pantalla
+// y permirte navegar entre ellas. El limite de las notas mostradas lo pone
+// la variable choices_showed
+void print_list(WINDOW *win, int highlight)
+{
+  int x, y, i;
+  int from, to;
+  x = 1;
+  y = 1;
+
+  box(win, 0, 0);
+  from = highlight;
+  to = highlight + choices_showed;
+
+  for (i = from; i < to; ++i)
+  {
+    if ((i >= 0) && (i < n_choices))
+    {
+      if (i == from)
+      {
+        if (mode == MODE_NAV)
+        {
+          wattron(win, A_REVERSE);
+          mvwprintw(win, y, x, "%s", choices[i]);
+          wattroff(win, A_REVERSE);
+        }
+        else
+        {
+          mvwprintw(win, y, x, "%s", choices[i]);
+        }
+      }
+      else
+      {
+        mvwprintw(win, y, x, "%s", choices[i]);
+      }
+    }
+    else
+    {
+      mvwprintw(win, y, x, "             ");
+    }
+
+    ++y;
+  }
+
+  wmove(win, 1, NOTES_NAMES_WIDTH - 1);
+  wvline(win, 0, LINES - 6);
+  wrefresh(win);
+}
+
+// Muestra el fichero en la parte derecha de la pantalla
+void print_file(WINDOW *win, int number)
+{
+  FILE *fp;
+  char line[300];
+  int line_max_len = COLS / 2;
+  int line_off = 2;
+  char *filename = NULL;
+
+  int len = strlen(dirname) + strlen(choices[number]) + 2;
+  filename = malloc(len * sizeof(char));
+  snprintf(filename, len, "%s/%s", dirname, choices[number]);
+
+  fp = fopen(filename, "r");
+  if (fp != NULL)
+  {
+    while (fgets(line, 300, fp) != NULL)
+    {
+      line[line_max_len] = 0; // solo muestra la parte de la línea que entra en la ventana
+      mvwprintw(menu_win, line_off, NOTES_NAMES_WIDTH, "%s", line);
+      line_off++;
+    }
+  }
+
+  free(filename);
+  wrefresh(menu_win);
+}
+
+// Comando de edición. Lllamada al sistema para arrancar el editor indicado
+void edit_file(WINDOW *win, int number)
+{
+  int len = strlen(editor) + strlen(dirname) + strlen(choices[number]) + 3;
+  char *command = malloc(len * sizeof(char));
+  snprintf(command, len, "%s %s/%s", editor, dirname, choices[number]);
+
+  endwin();
+  refresh();
+  wclear(win);
+
+  system(command);
+  free(command);
+}
+
+
+// Muestra el buffer de filtrado de etiquetas
+void print_tag_buffer()
+{
+  char *title = "Etiqueta:";
+  move(2, 0);
+  clrtoeol();
+  if (mode == MODE_TAG)
+  {
+    attron(A_REVERSE);
+    mvprintw(2, 0, title);
+    attroff(A_REVERSE);
+  }
+  else
+  {
+    mvprintw(2, 0, title);
+  }
+  mvprintw(2, strlen(title) + 1, tag_buffer);
+  refresh();
+}
+
+// Muestra la barra inferior
+void print_info_bar()
+{
+  int u = 0;
+  attron(A_REVERSE | A_BOLD);
+  for (u = 0; u < COLS; u++)
+  {
+    mvprintw(LINES - 1, u, " ");
+  }
+  mvprintw(LINES - 1, 1, "%s", INFOBAR);
+  attroff(A_REVERSE | A_BOLD);
+  refresh();
 }
