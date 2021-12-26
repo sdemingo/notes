@@ -13,14 +13,8 @@
 const char *dirnotes = ".cairen/notes";
 const char *editor = "emacs";
 
-/*
-  Cosas que faltan:
-  - Agregar filtrado por etiquetas.
-  - Eliminar el uso de menu_win y hacerlo todo en la ventana estándar por simplificar
-*/
-
 const int NOTES_NAMES_WIDTH = 30;
-const char *TITLE = "Notes 0.5";
+const char *TITLE = "Notes 1.0";
 const char *INFOBAR = " [q]=>Salir  [Enter]=>Mostrar  [e]=>Editar  [:]=>Filtrar  [d]=>Borrar";
 const int choices_showed = 15;
 const int MODE_NAV = 0;
