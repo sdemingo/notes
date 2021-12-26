@@ -19,7 +19,7 @@ int main()
   signal(SIGWINCH, sig_winch);
 
   choices = NULL;
-  n_choices = get_files(&choices);
+  n_choices = get_files(dirname, &choices);
 
   initscr();
   clear();
@@ -82,12 +82,13 @@ int main()
       {
         if (strlen(tag_buffer) != 0)
         {
-          n_choices = filter_by_tag(&choices, tag_buffer); // actualizo choices con las filtradas
+          n_choices = filter_by_tag(dirname, &choices, n_choices, tag_buffer); // actualizo lista
+          print_tag_buffer(0);
         }
         else
         {
-          choices = NULL;
-          n_choices = get_files(&choices);
+          choices = NULL;  // actualizo lista
+          n_choices = get_files(dirname, &choices);
           highlight = 0;
         }
         mode = MODE_NAV;
@@ -102,8 +103,12 @@ int main()
       break;
 
     case 'd':
-      if (mode == MODE_NAV)
-        delete_file(highlight);
+      if (mode == MODE_NAV){
+        delete_file(dirname, highlight);
+        choices = NULL; // actualizo lista
+        n_choices = get_files(dirname, &choices);
+        files_deleted = true;
+      }
       if (mode == MODE_TAG)
         tag_buffer[n_tag_chars++] = c;
       break;
@@ -145,101 +150,7 @@ int main()
 
 
 
-// Cara el directorio en la lista de navegación
-int get_files(char ***list)
-{
-  DIR *dirp;
-  struct dirent *direntp;
-  size_t n = 0;
 
-  dirp = opendir(dirname);
-  if (dirp == NULL)
-  {
-    printf("Error: No se puede abrir el directorio de notas: %s\n", dirname);
-    exit(0);
-  }
-  while ((direntp = readdir(dirp)) != NULL)
-  {
-    if (direntp->d_name[0] != '.')
-    {
-      *list = realloc(*list, sizeof(**list) * (n + 1)); // incremento en uno el tamaño de list
-      (*list)[n++] = strdup(direntp->d_name);           // inserto una copia del nombre del fichero
-    }
-  }
-
-  closedir(dirp);
-  return n;
-}
-
-// Filtrado de notas por etiqueta. Retorna los elementos filtrados
-int filter_by_tag(char ***list, char *tag)
-{
-  int i, l;
-  FILE *fp;
-  char *notepath;
-  char line[300];
-  char **filtered = NULL;
-  int n_filtered = 0;
-  int len;
-
-  for (i = 0; i < n_choices; i++)
-  {
-    len = strlen(dirname) + strlen(choices[i]) + 2;
-    notepath = malloc(len * sizeof(char));
-    snprintf(notepath,len,"%s/%s",dirname,choices[i]);
-
-    fp = fopen(notepath, "r");
-    if (fp != NULL)
-    {
-      for (l = 0; l < 2; l++) // only reads two first lines
-      {
-        fgets(line, 300, fp);
-        if (strstr(line, tag) != NULL)
-        {
-          //  Hemos encontrado una nota con esa etiqueta
-          filtered = realloc(filtered, sizeof(filtered) * (n_filtered + 1));
-          filtered[n_filtered++] = strdup(choices[i]);
-          free(choices[i]);
-        }
-      }
-    }
-    free(notepath);
-  }
-
-  // hago el cambio
-  free(*list);
-  *list = filtered;
-
-  print_tag_buffer(0);
-
-  return n_filtered;
-}
-
-// Borrado de nota
-void delete_file(int number)
-{
-  char *fname = choices[number];
-  char *tmpdir = "/tmp";
-  char *oldpath = malloc((strlen(dirname) + strlen(fname) + 2) * sizeof(char));
-  char *newpath = malloc((strlen(tmpdir) + strlen(fname) + 2) * sizeof(char));
-
-  strcat(oldpath, dirname);
-  strcat(oldpath, "/");
-  strcat(oldpath, fname);
-
-  strcat(newpath, tmpdir);
-  strcat(newpath, "/");
-  strcat(newpath, fname);
-
-  rename(oldpath, newpath);
-
-  free(oldpath);
-  free(newpath);
-  files_deleted = true;
-
-  choices = NULL;
-  n_choices = get_files(&choices);
-}
 
 // Manejador de eventos para la interrupción de redimensionado de la terminal
 void sig_winch(int in)

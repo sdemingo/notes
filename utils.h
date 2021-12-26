@@ -41,10 +41,11 @@ void print_file(WINDOW *win, int highlight);
 void print_info_bar();
 void print_tag_buffer();
 
-// utils functions
-void edit_file(WINDOW *win, int number);
-void delete_file(int number);
-int get_files(char ***list);
-int filter_by_tag(char ***list, char *tag);
-
 void sig_winch(int in);
+
+
+// utils.c functions
+void edit_file(WINDOW *win, int number);
+void delete_file(char *dir,int number);
+int get_files(char *dir,char ***list);
+int filter_by_tag(char *dir,char ***list, int nlist, char *tag);
