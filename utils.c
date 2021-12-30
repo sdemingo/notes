@@ -7,6 +7,21 @@
 
 
 
+int compare(const void *a, const void *b)
+{
+  char *ia = *(char **)a;
+  char *ib = *(char **)b;
+  if (!ia)
+  {
+    return 1;
+  }
+  if (!ib)
+  {
+    return -1;
+  }
+  return strncmp(ia, ib, 9);
+}
+
 
 // Cara el directorio en la lista de navegación
 int get_files(char *dir, char ***list)
@@ -31,9 +46,11 @@ int get_files(char *dir, char ***list)
   }
 
   closedir(dirp);
+
+  qsort(*list, n, sizeof(char *), compare);
+
   return n;
 }
-
 
 
 // Filtrado de notas por etiqueta. Retorna los elementos filtrados
@@ -51,7 +68,7 @@ int filter_by_tag(char *dir, char ***list, int nlist, char *tag)
   {
     len = strlen(dir) + strlen((*list)[i]) + 2;
     notepath = malloc(len * sizeof(char));
-    snprintf(notepath,len,"%s/%s",dir,(*list)[i]);
+    snprintf(notepath, len, "%s/%s", dir, (*list)[i]);
 
     fp = fopen(notepath, "r");
     if (fp != NULL)
@@ -99,6 +116,5 @@ void delete_file(char *dir, char ***list, int number)
   free(oldpath);
   free(newpath);
 
-  //files_deleted = true;
+  // files_deleted = true;
 }
-
